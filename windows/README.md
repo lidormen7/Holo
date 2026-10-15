@@ -21,20 +21,6 @@ action you assigned to it.
           Front (between you and the keyboard)
 ```
 
-<div dir="rtl">
-
-## מדריך מהיר בעברית
-
-1. **התקנה:** לחיצה כפולה על `run_holo.bat`. ההתקנה משתמשת רק ב-pip, כך שהיא עובדת מול שרת ה-pip הפנימי שלכם.
-   במחשב בלי רשת בכלל: מריצים `download_wheels.bat` במחשב מחובר, ומעתיקים את כל התיקייה כולל תיקיית `wheels`.
-2. **כיול:** במסך Calibrate בוחרים כמה אזורים רוצים (1 עד 4; ב-3 אזורים: שמאל, ימין ומול המחשב), לוחצים Begin calibration ומקישים בכל אזור מסומן.
-3. **פעולות:** בלשונית Actions בוחרים אזור, ולכל אזור מגדירים פעולה להקשה אחת, להקשה כפולה ולהקשה משולשת.
-4. **הגדרות:** במסך Settings בוחרים רגישות (Strict עד Sensitive), מצב בהיר/כהה/לפי Windows, ומיקרופון.
-5. **רקע:** סגירת החלון לא עוצרת את התוכנה. היא ממשיכה לרוץ ליד השעון. קליק ימני על האייקון שם →
-   **Start with Windows** מפעיל אותה אוטומטית עם עליית Windows, ו-**Exit Holo** סוגר אותה לגמרי.
-
-</div>
-
 ## Install and run
 
 **Easiest:** run `Holo.exe` (no Python needed). Windows SmartScreen may warn because the exe is not

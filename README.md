@@ -42,7 +42,7 @@ run a command, take a screenshot and more.
 **No Python on the target PC?** Run `windows\build_exe.bat` once on any PC that has Python. It produces a
 single `Holo.exe` that runs anywhere, with no installation.
 
-Full guide (also in Hebrew), settings, troubleshooting and offline install: **[windows/README.md](windows/README.md)**
+Full guide, settings, troubleshooting and offline install: **[windows/README.md](windows/README.md)**
 
 ## How it works
 
