@@ -66,6 +66,8 @@ The detection and classification math is ported from the original Holo's Swift c
 
 - Original Holo (macOS) © 2026 JustinGamer191 and Holo contributors.
 - Windows port © 2026 lidormen7.
+- Developed by lidormen7 with the help of Claude (Anthropic's AI assistant), which wrote most of the code.
+  Tested on real hardware by the author.
 - Released under the **MIT License**: free to use, change and share, as long as the copyright and license
   notice stay included. See [LICENSE](LICENSE).
 - Third-party packages keep their own licenses: [windows/THIRD_PARTY_NOTICES.md](windows/THIRD_PARTY_NOTICES.md).
