@@ -1,5 +1,10 @@
 # Holo
 
+> **Windows port:** this fork adds [Holo for Windows](windows/) in the `windows/` folder, an
+> unofficial Python port by lidormen7, published with the original author's approval under the same MIT
+> License. Everything outside `windows/` is the original macOS project by JustinGamer191 and Holo
+> contributors, unchanged. See [windows/NOTICE.md](windows/NOTICE.md).
+
 **Tap your desk. Your Mac responds.**
 
 [![CI](https://github.com/JustinGamer191/Holo/actions/workflows/ci.yml/badge.svg)](https://github.com/JustinGamer191/Holo/actions/workflows/ci.yml)
