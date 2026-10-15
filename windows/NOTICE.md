@@ -7,18 +7,19 @@ project targets macOS and is not responsible for this port or its bugs.
 - **License:** MIT, the same license as the original. See [`LICENSE`](LICENSE). It keeps the
   original copyright notice, as the MIT License requires, and adds one for the port.
 - **Permission:** the original author was asked and approved publishing this port.
-- **Based on:** the upstream repository as of commit `87c36ae`.
+- **Based on:** the upstream repository as of commit [`87c36ae`](https://github.com/JustinGamer191/Holo/tree/87c36ae). The macOS source is not
+  included in this repository; the links below point to it in the original project.
 
 ## What comes from the original
 
 | Original (Swift, macOS) | Windows port (Python) |
 |---|---|
-| `Sources/HoloCore/StreamingTapDetector.swift` | `holo/core.py` `StreamingTapDetector`: same thresholds and adaptation rules |
-| `Sources/HoloCore/ImpactEventGate.swift` | `holo/core.py` `impact_gate_accepts` / `impact_metrics` |
-| `Sources/HoloCore/TapFeatureExtractor.swift`, `FFT.swift` | `holo/core.py` `TapFeatureExtractor`, `power_spectrum` |
-| `Sources/HoloCore/TapClassifier.swift` | `holo/core.py` `TapClassifier` (ridge zone model, novelty and negative-example gates) |
-| `Sources/HoloCore/SignalModels.swift`, `GuidedCaptureQuality.swift`, `Evaluation.swift` | signal quality, calibration guidance, leave-one-out check, accuracy test |
-| `DESIGN.md`, `Sources/HoloApp/DeskMapView.swift` | the interface direction: calm surfaces, one accent color, side-rail desk map |
+| [`StreamingTapDetector.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloCore/StreamingTapDetector.swift) | `holo/core.py` `StreamingTapDetector`: same thresholds and adaptation rules |
+| [`ImpactEventGate.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloCore/ImpactEventGate.swift) | `holo/core.py` `impact_gate_accepts` / `impact_metrics` |
+| [`TapFeatureExtractor.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloCore/TapFeatureExtractor.swift), [`FFT.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloCore/FFT.swift) | `holo/core.py` `TapFeatureExtractor`, `power_spectrum` |
+| [`TapClassifier.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloCore/TapClassifier.swift) | `holo/core.py` `TapClassifier` (ridge zone model, novelty and negative-example gates) |
+| [`SignalModels.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloCore/SignalModels.swift), [`GuidedCaptureQuality.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloCore/GuidedCaptureQuality.swift), [`Evaluation.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloCore/Evaluation.swift) | signal quality, calibration guidance, leave-one-out check, accuracy test |
+| [`DESIGN.md`](https://github.com/JustinGamer191/Holo/blob/87c36ae/DESIGN.md), [`DeskMapView.swift`](https://github.com/JustinGamer191/Holo/blob/87c36ae/Sources/HoloApp/DeskMapView.swift) | the interface direction: calm surfaces, one accent color, side-rail desk map |
 
 ## What is new in the port
 

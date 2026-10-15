@@ -23,29 +23,29 @@ action you assigned to it.
 
 ## Install and run
 
-**Easiest:** run `Holo.exe` (no Python needed). Windows SmartScreen may warn because the exe is not
-code-signed. Click *More info → Run anyway*.
-
-**From source:**
-
 1. Install **Python 3.10 or newer** from https://www.python.org/downloads/. In the installer, tick **"Add python.exe to PATH"**.
 2. Double-click **`run_holo.bat`**. The first run takes a minute to set up. After that it opens straight away.
 3. If Windows asks for microphone access, allow it. Also check **Settings → Privacy & security → Microphone →
    "Let desktop apps access your microphone"** is on.
 
-To make the exe yourself, run **`build_exe.bat`**. It produces a single `dist\Holo.exe` that you can copy to any
-Windows 10/11 PC.
+### A single `Holo.exe` for PCs without Python
+
+Run **`build_exe.bat`** on a PC that has Python. It builds `dist\Holo.exe`, checks it with a self-test
+(look for `SELF-TEST PASSED`), and that one file runs on any 64-bit Windows 10/11 PC with nothing installed.
+Copy only `Holo.exe`; the `.venv` folder does not work on another PC.
+
+The exe is not code-signed, so Windows SmartScreen may warn the first time: click *More info → Run anyway*.
 
 ## First run: calibration is required
 
-Every PC, microphone and desk sounds different, so Holo starts locked on the **Calibrate** tab. The Desk and
-Accuracy test tabs unlock only after you calibrate and save. If you select a different microphone later, or the
+Every PC, microphone and desk sounds different, so Holo opens on the **Calibrate** page. The Desk and
+Accuracy test pages unlock only after you calibrate and save. If you select a different microphone later, or the
 microphone's sample rate changes, Holo locks again and asks you to recalibrate. Your actions are kept.
 
 ## Using it
 
-1. **Calibrate tab.** Choose the **number of zones** (1–4):
-   - 1 zone: anywhere on the desk (both sides). Most reliable, one place to tap.
+1. **Calibrate.** Choose the **number of zones** (1–4):
+   - 1 zone: anywhere around the laptop (left, right or in front). Most reliable.
    - 2 zones: left / right of the laptop.
    - 3 zones: left, right, and in front of the laptop (between you and the keyboard).
    - 4 zones: the four corners (like the original).
@@ -56,9 +56,9 @@ microphone's sample rate changes, Holo locks again and asks you to recalibrate. 
    10 for 4 zones.
    Holo tells you if a tap was too soft, too loud or masked by noise.
    At the end it reports a consistency score. If it is below 80%, use *Redo zone* on the weakest zone, then *Save profile*.
-2. Optional: press **Teach non-tap sounds** and talk, type and touch the laptop for 12 seconds.
-   This reduces false triggers.
-3. **Actions tab.** Pick a zone, then choose what a **single, double and triple tap** on it does.
+2. Optional but recommended (especially with 1 zone): under **Non-tap sounds**, press **Record for 12 s** and
+   talk, type and touch the laptop. Holo learns to ignore those sounds.
+3. **Actions.** Pick a zone, then choose what a **single, double and triple tap** on it does.
    Double/triple tap = tap the same zone 2–3 times with about a quarter to half a second between taps.
    If a zone only has a single-tap action it fires instantly; otherwise Holo waits ~0.6 s for more taps.
    Changes save immediately, and the *Test* button runs the action once.
@@ -69,8 +69,12 @@ microphone's sample rate changes, Holo locks again and asks you to recalibrate. 
    - Run a command (`cmd.exe`) or a PowerShell script
    - Press a keyboard shortcut, e.g. `ctrl+shift+esc`, `win+d`, `playpause`, `volumemute`, `alt+f4`
    - Screenshot the whole screen to the clipboard, or snip a region with the Snipping Tool
-4. **Desk tab.** Tap the desk. Recognized zones flash green and run their action.
-   Actions run while the Desk tab is open **or while Holo is in the background**.
+4. **Desk.** Tap the desk. The recognized zone lights up and its action runs.
+   Actions run while the Desk page is open **or while Holo is in the background**.
+5. **Accuracy test** (optional). Tap each zone 15 times when asked. Holo shows how many taps it recognized
+   correctly and which zones it confused. Aim for 80% or better; if a zone scores low, recalibrate.
+
+If you move the laptop, change desks, or switch microphones, recalibrate. The sound path changes.
 
 ## Settings
 
@@ -89,10 +93,6 @@ Starting Holo a second time just opens the running copy.
 
 Holo is not a Windows *service* on purpose. Services run in an isolated session without access to your
 microphone permission, screen, clipboard or keyboard, so the actions could not work from there.
-5. **Accuracy test tab.** Runs a held-out 60-tap test and shows the accuracy and a confusion table.
-   The goal is 80% or better.
-
-If you move the laptop, change desks, or switch microphones, recalibrate. The sound path changes.
 
 ## Offline / internal-network PCs
 

@@ -6,10 +6,10 @@ Holo for Windows listens through your laptop's microphone. It learns how taps on
 works out where you tapped, and runs an action: open an app or website, press a keyboard shortcut,
 run a command, take a screenshot and more.
 
-> Based on [Holo](https://github.com/JustinGamer191/Holo) by JustinGamer191, a macOS app, and published
-> with the author's approval under the MIT License. This repository is a fork: the Windows app is in
-> [`windows/`](windows/), and the original macOS project files are kept unchanged alongside it.
-> Details: [windows/NOTICE.md](windows/NOTICE.md).
+> A Windows port of [Holo](https://github.com/JustinGamer191/Holo) by JustinGamer191, originally a macOS
+> app, published with the author's approval under the MIT License. This repository contains only the
+> Windows app (in [`windows/`](windows/)); the macOS app lives in the
+> [original project](https://github.com/JustinGamer191/Holo). Details: [windows/NOTICE.md](windows/NOTICE.md).
 
 ## Highlights
 
@@ -58,15 +58,16 @@ The detection and classification math is ported from the original Holo's Swift c
 | Path | What it is |
 |---|---|
 | [`windows/`](windows/) | **Holo for Windows**: Python source, tests, install and build scripts |
-| `.github/workflows/windows-build.yml` | Builds and tests `Holo.exe` on GitHub Actions |
-| everything else | The original macOS app by JustinGamer191, unchanged ([upstream](https://github.com/JustinGamer191/Holo)) |
+| [`windows/holo/`](windows/holo/) | The app itself: detection and classification (`core.py`), interface (`app.py`), actions, tray |
+| [`.github/workflows/windows-build.yml`](.github/workflows/windows-build.yml) | Tests and builds `Holo.exe` on GitHub Actions |
+| [`LICENSE`](LICENSE) | MIT License, with the original author's and the port's copyright notices |
 
 ## Credits and license
 
 - Original Holo (macOS) © 2026 JustinGamer191 and Holo contributors.
 - Windows port © 2026 lidormen7.
 - Released under the **MIT License**: free to use, change and share, as long as the copyright and license
-  notice stay included. See [windows/LICENSE](windows/LICENSE), and [LICENSE](LICENSE) for the original project.
+  notice stay included. See [LICENSE](LICENSE).
 - Third-party packages keep their own licenses: [windows/THIRD_PARTY_NOTICES.md](windows/THIRD_PARTY_NOTICES.md).
 
 Issues with the Windows version belong here, not in the original project.
