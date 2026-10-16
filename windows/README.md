@@ -68,7 +68,11 @@ microphone's sample rate changes, Holo locks again and asks you to recalibrate. 
    - Open an app, file or folder (`.exe`, `.lnk` shortcut, document, folder)
    - Run a command (`cmd.exe`) or a PowerShell script
    - Press a keyboard shortcut, e.g. `ctrl+shift+esc`, `win+d`, `playpause`, `volumemute`, `alt+f4`
+     (keys can be in any order; a misspelled key is shown in red under the field as you type)
    - Screenshot the whole screen to the clipboard, or snip a region with the Snipping Tool
+
+   If an action fails, the reason appears at the bottom of the window. It clears when you edit the action,
+   or after 10 seconds.
 4. **Desk.** Tap the desk. The recognized zone lights up and its action runs.
    Actions run while the Desk page is open **or while Holo is in the background**.
 5. **Accuracy test** (optional). Tap each zone 15 times when asked. Holo shows how many taps it recognized
