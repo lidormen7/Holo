@@ -328,3 +328,30 @@ def test_shortcut_target_skips_holo_and_hidden_windows(monkeypatch):
             return windows[hwnd][3]
 
     assert actions._app_behind(User32(), own, 1) == 6
+
+
+def test_modifier_order_does_not_depend_on_spelling():
+    from holo.actions import parse_keys
+    assert parse_keys("alt+shift") == parse_keys("shift+alt") == [0x12, 0x10]
+    assert parse_keys("shift+win+ctrl+s") == [0x11, 0x10, 0x5B, ord("S")]
+
+
+def test_holo_comes_back_only_if_the_shortcut_left_focus_alone():
+    from holo import actions
+
+    class User32:
+        def __init__(self, foreground):
+            self.foreground, self.raised = foreground, []
+
+        def GetForegroundWindow(self):
+            return self.foreground
+
+        def SetWindowPos(self, hwnd, after, *rest):
+            self.raised.append((hwnd, after))
+
+    stayed = User32(foreground=7)            # keys went to app 7, which still has the focus
+    actions._return_focus_to_holo(stayed, holo=1, target=7)
+    assert stayed.raised == [(1, -1), (1, -2)]
+    moved = User32(foreground=9)             # e.g. alt+tab switched to another app
+    actions._return_focus_to_holo(moved, holo=1, target=7)
+    assert moved.raised == []

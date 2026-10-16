@@ -246,6 +246,9 @@ _EXTENDED = {0x5B, 0x2E, 0x2D, 0x24, 0x23, 0x21, 0x22, 0x25, 0x26, 0x27, 0x28, 0
              0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3}
 
 
+_MODIFIER_ORDER = (0x11, 0x12, 0x10, 0x5B)   # Ctrl, Alt, Shift, Win
+
+
 def parse_keys(spec: str) -> list[int]:
     codes = []
     for part in [p.strip().lower() for p in spec.replace(" ", "").split("+") if p.strip()]:
@@ -257,7 +260,11 @@ def parse_keys(spec: str) -> list[int]:
             raise ActionError(f"Unknown key: {part}")
     if not codes:
         raise ActionError("No keys given.")
-    return codes
+    # Modifiers first, always in the same order, so "shift+alt" acts exactly like
+    # "alt+shift". Pressing Shift before Alt meant Alt went down and up with no key pressed
+    # under it, which Windows treats as a lone Alt press (menus / key tips open).
+    modifiers = [vk for vk in _MODIFIER_ORDER if vk in codes]
+    return modifiers + [vk for vk in codes if vk not in _MODIFIER_ORDER]
 
 
 def _app_behind(user32, own_pid: int, start_hwnd):
@@ -291,7 +298,7 @@ def _is_cloaked(hwnd) -> bool:
         return False
 
 
-def _focus_away_from_holo(user32) -> None:
+def _focus_away_from_holo(user32):
     """Keystrokes go to the active window. If that is Holo itself (the Desk page or a Test
     button), give the focus back to the app used before Holo first: keys sent to Holo's own
     window are never useful, and Alt combinations would put it into Windows' menu mode,
@@ -300,19 +307,32 @@ def _focus_away_from_holo(user32) -> None:
     from ctypes import wintypes
     foreground = user32.GetForegroundWindow()
     if not foreground:
-        return
+        return None
     pid = wintypes.DWORD()
     user32.GetWindowThreadProcessId(foreground, ctypes.byref(pid))
     if pid.value != os.getpid():
-        return
+        return None
     target = _app_behind(user32, os.getpid(), foreground)
     if not target:
-        return
+        return None
     user32.SetForegroundWindow(target)
     for _ in range(25):                                          # up to ~0.25 s for the switch
         if user32.GetForegroundWindow() == target:
             break
         time.sleep(0.01)
+    return foreground, target
+
+
+def _return_focus_to_holo(user32, holo, target) -> None:
+    """Puts Holo's window back in front after its keys reached the other app, so it does
+    not look closed. The keyboard focus stays with that app (where the shortcut was meant
+    to act, e.g. typing on after a language switch). Skipped when the shortcut itself moved
+    the focus (alt+tab, win+d...). Changing the stacking order needs no special rights."""
+    if user32.GetForegroundWindow() != target:
+        return
+    flags = 0x0001 | 0x0002 | 0x0010 | 0x0040        # NOSIZE | NOMOVE | NOACTIVATE | SHOWWINDOW
+    user32.SetWindowPos(holo, -1, 0, 0, 0, 0, flags)  # HWND_TOPMOST...
+    user32.SetWindowPos(holo, -2, 0, 0, 0, 0, flags)  # ...then normal again, staying in front
 
 
 def press_keys(spec: str) -> None:
@@ -326,7 +346,9 @@ def press_keys(spec: str) -> None:
                  "SetForegroundWindow"):
         getattr(user32, name).argtypes = [handle] + ([ctypes.c_void_p] if name == "GetWindowThreadProcessId" else [])
     user32.GetWindowLongW.argtypes = [handle, ctypes.c_int]
-    _focus_away_from_holo(user32)
+    user32.SetWindowPos.argtypes = [handle, handle, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                    ctypes.c_uint]
+    moved = _focus_away_from_holo(user32)
     KEYUP, EXT = 0x0002, 0x0001
     # Short gaps between events: some apps miss combinations that arrive all at once.
     for vk in codes:
@@ -335,6 +357,9 @@ def press_keys(spec: str) -> None:
     for vk in reversed(codes):
         user32.keybd_event(vk, 0, (EXT if vk in _EXTENDED else 0) | KEYUP, 0)
         time.sleep(0.01)
+    if moved:
+        time.sleep(0.15)   # let the app handle the keys (e.g. a language switch) first
+        _return_focus_to_holo(user32, *moved)
 
 
 def perform_async(action: ZoneAction, on_error, clipboard_setter=None) -> None:
