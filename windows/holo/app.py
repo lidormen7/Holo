@@ -23,6 +23,7 @@ from .storage import Profile, load_profile, save_profile, data_dir
 
 EVAL_TAPS_PER_ZONE = 15
 DESK_REFRACTORY_S = 0.03    # quiet time after a tap on the Desk (original: 0.14 s)
+ERROR_STATUS_MS = 10_000  # an action error stays under the page this long
 TRAY_REFRESH_MS = 60_000   # re-send the tray icon so a swapped image corrects itself
 TRANSITION_SECONDS = 1.2
 NEGATIVE_SECONDS = 12
@@ -344,6 +345,8 @@ class HoloApp:
         self.root = root
         self.instance = instance
         self.hidden = False
+        self._status_clear_id = None
+        self._status_is_error = False
         self.skin = Skin()
         root.title("Holo")
         bg.apply_window_icon(root)
@@ -418,6 +421,8 @@ class HoloApp:
             self.skin.pal = pal
             return
         self.skin.repaint(pal)
+        for p in range(len(getattr(self, "action_rows", ()))):
+            self._refresh_action_row(p)  # keeps a red "Unknown key" hint red
         for seg in self.segments:
             if seg.winfo_exists():
                 seg.paint()
@@ -817,7 +822,7 @@ class HoloApp:
                 if kind == "obs":
                     self._handle(payload)  # type: ignore[arg-type]
                 elif kind == "error":
-                    self._set_status(str(payload))
+                    self._set_status(str(payload), error=True)
                     if self.hidden:
                         self.tray.notify(str(payload))
                 elif kind == "call":
@@ -1235,6 +1240,8 @@ class HoloApp:
         self.profile.actions[self.action_zone.get()][pattern] = act.ZoneAction(kind, text_var.get())
         for p in range(len(self.action_rows)):
             self._refresh_action_row(p)
+        if self._status_is_error:  # the user is fixing the action; drop the stale error
+            self._set_status("Ready.")
         self._persist()
 
     def _refresh_action_row(self, pattern: int):
@@ -1246,7 +1253,8 @@ class HoloApp:
         text = act.TEXT_HINTS.get(kind, "")
         if kind == "none":
             text = "No action."
-        hint.configure(text=text)
+        problem = act.check_action(self.profile.actions[z][pattern])
+        hint.configure(text=problem or text, fg=self.skin.pal["error" if problem else "sub"])
 
     def _browse(self, pattern: int):
         kind = self.profile.actions[self.action_zone.get()][pattern].kind
@@ -1283,9 +1291,22 @@ class HoloApp:
         except OSError as exc:
             self._set_status(f"Could not save profile: {exc}")
 
-    def _set_status(self, text: str):
-        if hasattr(self, "status"):
-            self.status.set(text)
+    def _set_status(self, text: str, error: bool = False):
+        """Show a line under the page. Errors clear themselves after a while (or on the next status)."""
+        if not hasattr(self, "status"):
+            return
+        if self._status_clear_id is not None:
+            self.root.after_cancel(self._status_clear_id)
+            self._status_clear_id = None
+        self.status.set(text)
+        self._status_is_error = error
+        if error:
+            self._status_clear_id = self.root.after(ERROR_STATUS_MS, self._clear_error_status)
+
+    def _clear_error_status(self):
+        self._status_clear_id = None
+        if self._status_is_error:
+            self._set_status("Ready.")
 
     # ------------------------------------------------------------ background
     def _close_window(self):

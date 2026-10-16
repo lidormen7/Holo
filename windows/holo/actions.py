@@ -362,6 +362,16 @@ def press_keys(spec: str) -> None:
         _return_focus_to_holo(user32, *moved)
 
 
+def check_action(action: ZoneAction) -> str | None:
+    """A problem the user can fix in the action's text (shown live while typing), else None."""
+    if action.kind == "pressKeys" and action.text.strip():
+        try:
+            parse_keys(action.text)
+        except ActionError as exc:
+            return str(exc)
+    return None
+
+
 def perform_async(action: ZoneAction, on_error, clipboard_setter=None) -> None:
     """Fire-and-forget wrapper; clipboard work must stay on the UI thread."""
     if action.kind == "copyText":

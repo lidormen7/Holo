@@ -355,3 +355,11 @@ def test_holo_comes_back_only_if_the_shortcut_left_focus_alone():
     moved = User32(foreground=9)             # e.g. alt+tab switched to another app
     actions._return_focus_to_holo(moved, holo=1, target=7)
     assert moved.raised == []
+
+
+def test_check_action_flags_a_mistyped_shortcut_only():
+    from holo.actions import ZoneAction, check_action
+    assert check_action(ZoneAction("pressKeys", "alt+shif")) == "Unknown key: shif"
+    assert check_action(ZoneAction("pressKeys", "alt+shift")) is None
+    assert check_action(ZoneAction("pressKeys", "")) is None
+    assert check_action(ZoneAction("openURL", "alt+shif")) is None
