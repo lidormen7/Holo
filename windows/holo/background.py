@@ -37,6 +37,32 @@ def set_app_user_model_id() -> None:
         pass
 
 
+def disable_power_throttling() -> None:
+    """Asks Windows 11 not to slow Holo down while its window is closed.
+
+    Background processes without a visible window can be put in "efficiency mode"
+    (EcoQoS), which slows their CPU work and timers. Holo has to answer a tap at once, so
+    it opts out, as real-time audio apps do. No effect on older Windows versions."""
+    if not IS_WINDOWS:
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class PROCESS_POWER_THROTTLING_STATE(ctypes.Structure):
+            _fields_ = [("Version", wintypes.ULONG), ("ControlMask", wintypes.ULONG),
+                        ("StateMask", wintypes.ULONG)]
+
+        # EXECUTION_SPEED | IGNORE_TIMER_RESOLUTION controlled, and both switched off.
+        state = PROCESS_POWER_THROTTLING_STATE(Version=1, ControlMask=0x1 | 0x4, StateMask=0)
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+        kernel32.SetProcessInformation(ctypes.c_void_p(kernel32.GetCurrentProcess()), 4,  # ProcessPowerThrottling
+                                       ctypes.byref(state), ctypes.sizeof(state))
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------- start at login
 
 def launch_command() -> str:

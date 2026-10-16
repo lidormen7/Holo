@@ -921,9 +921,10 @@ class HoloApp:
         self.desk_meta.set(" · ".join(meta))
 
     def _set_clipboard(self, text: str):
+        # No root.update() here: re-entering the event loop from inside a tap handler
+        # delayed the next tap. Tk hands the text to Windows on its own.
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
-        self.root.update()
 
     # ---------------------------------------------------------- calibration
     def _ensure_listening(self) -> bool:
@@ -1383,6 +1384,7 @@ def main():
         instance.signal_primary()  # bring the running copy to the front instead
         return
     bg.set_app_user_model_id()
+    bg.disable_power_throttling()
     root = tk.Tk()
     HoloApp(root, start_hidden="--background" in sys.argv, instance=instance)
     root.mainloop()

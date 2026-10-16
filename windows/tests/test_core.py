@@ -294,3 +294,37 @@ def test_short_pause_does_not_split_one_ringing_tap():
                            + 0.5 * np.exp(-t * 30) * np.sin(2 * np.pi * 3300 * t))).astype(np.float32)
         ringing[:96] += (0.37 * rng.normal(0, 1, 96) * np.exp(-np.arange(96) / 12)).astype(np.float32)
         assert len(feed(d, np.concatenate([quiet(300), ringing, quiet(int(SR * 0.5))]))) <= 1
+
+
+def test_shortcut_target_skips_holo_and_hidden_windows(monkeypatch):
+    import ctypes
+    from holo import actions
+    monkeypatch.setattr(actions, "_is_cloaked", lambda hwnd: False)
+    own = 100
+    # z-order below Holo's window (1): its own popup, a hidden window, a tool window,
+    # an untitled window, then the app the user was really using.
+    windows = {2: (own, True, 0, 5), 3: (200, False, 0, 5), 4: (200, True, 0x80, 5),
+               5: (200, True, 0, 0), 6: (300, True, 0, 9)}
+    order = [1, 2, 3, 4, 5, 6]
+
+    class User32:
+        def GetWindow(self, hwnd, cmd):
+            i = order.index(hwnd) + 1
+            return order[i] if i < len(order) else 0
+
+        def GetWindowThreadProcessId(self, hwnd, pid_ref):
+            ctypes.cast(pid_ref, ctypes.POINTER(ctypes.c_ulong)).contents.value = windows[hwnd][0]
+
+        def IsWindowVisible(self, hwnd):
+            return windows[hwnd][1]
+
+        def IsIconic(self, hwnd):
+            return False
+
+        def GetWindowLongW(self, hwnd, index):
+            return windows[hwnd][2]
+
+        def GetWindowTextLengthW(self, hwnd):
+            return windows[hwnd][3]
+
+    assert actions._app_behind(User32(), own, 1) == 6

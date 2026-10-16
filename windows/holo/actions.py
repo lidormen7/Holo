@@ -260,15 +260,81 @@ def parse_keys(spec: str) -> list[int]:
     return codes
 
 
+def _app_behind(user32, own_pid: int, start_hwnd):
+    """The next visible, titled application window below start_hwnd that is not Holo's."""
+    import ctypes
+    from ctypes import wintypes
+    hwnd = user32.GetWindow(start_hwnd, 2)                       # GW_HWNDNEXT
+    for _ in range(500):
+        if not hwnd:
+            return None
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        exstyle = user32.GetWindowLongW(hwnd, -20)               # GWL_EXSTYLE
+        if (pid.value != own_pid and user32.IsWindowVisible(hwnd) and not user32.IsIconic(hwnd)
+                and user32.GetWindowTextLengthW(hwnd) > 0 and not exstyle & 0x80   # WS_EX_TOOLWINDOW
+                and not _is_cloaked(hwnd)):
+            return hwnd
+        hwnd = user32.GetWindow(hwnd, 2)
+    return None
+
+
+def _is_cloaked(hwnd) -> bool:
+    """Hidden UWP/virtual-desktop windows report as visible but are 'cloaked'."""
+    import ctypes
+    try:
+        cloaked = ctypes.c_int(0)
+        ctypes.windll.dwmapi.DwmGetWindowAttribute(  # type: ignore[attr-defined]
+            ctypes.c_void_p(hwnd), 14, ctypes.byref(cloaked), ctypes.sizeof(cloaked))
+        return bool(cloaked.value)
+    except Exception:
+        return False
+
+
+def _focus_away_from_holo(user32) -> None:
+    """Keystrokes go to the active window. If that is Holo itself (the Desk page or a Test
+    button), give the focus back to the app used before Holo first: keys sent to Holo's own
+    window are never useful, and Alt combinations would put it into Windows' menu mode,
+    which freezes the window until a click or Esc."""
+    import ctypes
+    from ctypes import wintypes
+    foreground = user32.GetForegroundWindow()
+    if not foreground:
+        return
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(foreground, ctypes.byref(pid))
+    if pid.value != os.getpid():
+        return
+    target = _app_behind(user32, os.getpid(), foreground)
+    if not target:
+        return
+    user32.SetForegroundWindow(target)
+    for _ in range(25):                                          # up to ~0.25 s for the switch
+        if user32.GetForegroundWindow() == target:
+            break
+        time.sleep(0.01)
+
+
 def press_keys(spec: str) -> None:
     import ctypes
     codes = parse_keys(spec)
     user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+    handle = ctypes.c_void_p
+    user32.GetForegroundWindow.restype = handle
+    user32.GetWindow.restype, user32.GetWindow.argtypes = handle, [handle, ctypes.c_uint]
+    for name in ("GetWindowThreadProcessId", "IsWindowVisible", "IsIconic", "GetWindowTextLengthW",
+                 "SetForegroundWindow"):
+        getattr(user32, name).argtypes = [handle] + ([ctypes.c_void_p] if name == "GetWindowThreadProcessId" else [])
+    user32.GetWindowLongW.argtypes = [handle, ctypes.c_int]
+    _focus_away_from_holo(user32)
     KEYUP, EXT = 0x0002, 0x0001
+    # Short gaps between events: some apps miss combinations that arrive all at once.
     for vk in codes:
         user32.keybd_event(vk, 0, EXT if vk in _EXTENDED else 0, 0)
+        time.sleep(0.01)
     for vk in reversed(codes):
         user32.keybd_event(vk, 0, (EXT if vk in _EXTENDED else 0) | KEYUP, 0)
+        time.sleep(0.01)
 
 
 def perform_async(action: ZoneAction, on_error, clipboard_setter=None) -> None:
