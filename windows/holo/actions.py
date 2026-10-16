@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from dataclasses import dataclass, asdict
 
@@ -85,6 +86,100 @@ def _ps_quote(text: str) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
+def screenshot_to_clipboard() -> tuple[int, int]:
+    """Copies all monitors to the clipboard as a bitmap and returns its size.
+
+    Done in-process with GDI instead of a PowerShell helper: PowerShell took seconds to
+    start (so a quick paste still got the old clipboard) and, not being DPI aware, saw a
+    scaled-down screen and captured only part of it on displays set above 100%.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    user32, gdi32, kernel32 = ctypes.windll.user32, ctypes.windll.gdi32, ctypes.windll.kernel32  # type: ignore[attr-defined]
+    handle = ctypes.c_void_p
+    for fn, res, args in (
+        (user32.GetDC, handle, [handle]),
+        (user32.ReleaseDC, ctypes.c_int, [handle, handle]),
+        (gdi32.CreateCompatibleDC, handle, [handle]),
+        (gdi32.CreateCompatibleBitmap, handle, [handle, ctypes.c_int, ctypes.c_int]),
+        (gdi32.SelectObject, handle, [handle, handle]),
+        (gdi32.BitBlt, wintypes.BOOL, [handle, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                       handle, ctypes.c_int, ctypes.c_int, wintypes.DWORD]),
+        (gdi32.GetDIBits, ctypes.c_int, [handle, handle, wintypes.UINT, wintypes.UINT, ctypes.c_void_p,
+                                         ctypes.c_void_p, wintypes.UINT]),
+        (gdi32.DeleteObject, wintypes.BOOL, [handle]),
+        (gdi32.DeleteDC, wintypes.BOOL, [handle]),
+        (kernel32.GlobalAlloc, handle, [wintypes.UINT, ctypes.c_size_t]),
+        (kernel32.GlobalLock, ctypes.c_void_p, [handle]),
+        (kernel32.GlobalUnlock, wintypes.BOOL, [handle]),
+        (kernel32.GlobalFree, handle, [handle]),
+        (user32.OpenClipboard, wintypes.BOOL, [handle]),
+        (user32.EmptyClipboard, wintypes.BOOL, []),
+        (user32.SetClipboardData, handle, [wintypes.UINT, handle]),
+        (user32.CloseClipboard, wintypes.BOOL, []),
+    ):
+        fn.restype, fn.argtypes = res, args
+
+    # Physical pixels on every monitor, whatever the display scaling.
+    try:
+        user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))  # PER_MONITOR_AWARE_V2
+    except AttributeError:
+        pass
+    x, y = user32.GetSystemMetrics(76), user32.GetSystemMetrics(77)   # SM_X/YVIRTUALSCREEN
+    w, h = user32.GetSystemMetrics(78), user32.GetSystemMetrics(79)   # SM_CX/CYVIRTUALSCREEN
+    if w <= 0 or h <= 0:
+        raise ActionError("Could not read the screen size.")
+
+    class BITMAPINFOHEADER(ctypes.Structure):
+        _fields_ = [("biSize", wintypes.DWORD), ("biWidth", wintypes.LONG), ("biHeight", wintypes.LONG),
+                    ("biPlanes", wintypes.WORD), ("biBitCount", wintypes.WORD), ("biCompression", wintypes.DWORD),
+                    ("biSizeImage", wintypes.DWORD), ("biXPelsPerMeter", wintypes.LONG),
+                    ("biYPelsPerMeter", wintypes.LONG), ("biClrUsed", wintypes.DWORD),
+                    ("biClrImportant", wintypes.DWORD)]
+
+    stride = (w * 3 + 3) & ~3                      # 24-bit rows padded to 4 bytes
+    header = BITMAPINFOHEADER(biSize=ctypes.sizeof(BITMAPINFOHEADER), biWidth=w, biHeight=h, biPlanes=1,
+                              biBitCount=24, biCompression=0, biSizeImage=stride * h)
+    pixels = ctypes.create_string_buffer(stride * h)
+    screen = user32.GetDC(None)
+    memory = gdi32.CreateCompatibleDC(screen)
+    bitmap = gdi32.CreateCompatibleBitmap(screen, w, h)
+    try:
+        previous = gdi32.SelectObject(memory, bitmap)
+        copied = gdi32.BitBlt(memory, 0, 0, w, h, screen, x, y, 0x00CC0020 | 0x40000000)  # SRCCOPY|CAPTUREBLT
+        gdi32.SelectObject(memory, previous)
+        rows = gdi32.GetDIBits(memory, bitmap, 0, h, pixels, ctypes.byref(header), 0)
+    finally:
+        gdi32.DeleteObject(bitmap)
+        gdi32.DeleteDC(memory)
+        user32.ReleaseDC(None, screen)
+    if not copied or rows != h:
+        raise ActionError("Windows did not allow capturing the screen.")
+
+    data = bytes(header) + pixels.raw
+    block = kernel32.GlobalAlloc(0x0002, len(data))                 # GMEM_MOVEABLE
+    if not block:
+        raise ActionError("Not enough memory for the screenshot.")
+    ctypes.memmove(kernel32.GlobalLock(block), data, len(data))
+    kernel32.GlobalUnlock(block)
+    for _ in range(20):                                             # another app may hold the clipboard
+        if user32.OpenClipboard(None):
+            break
+        time.sleep(0.05)
+    else:
+        kernel32.GlobalFree(block)
+        raise ActionError("The clipboard is busy; try again.")
+    try:
+        user32.EmptyClipboard()
+        if not user32.SetClipboardData(8, block):                   # CF_DIB; the clipboard owns it now
+            kernel32.GlobalFree(block)
+            raise ActionError("Could not put the screenshot on the clipboard.")
+    finally:
+        user32.CloseClipboard()
+    return w, h
+
+
 def perform(action: ZoneAction, clipboard_setter=None) -> None:
     """Run an action. Raises ActionError with a user-readable message."""
     kind, text = action.kind, action.text.strip()
@@ -126,15 +221,7 @@ def perform(action: ZoneAction, clipboard_setter=None) -> None:
         elif kind == "pressKeys":
             press_keys(text)
         elif kind == "screenshotClipboard":
-            _powershell(
-                "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; "
-                "$b=[System.Windows.Forms.SystemInformation]::VirtualScreen; "
-                "$bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height; "
-                "$g=[System.Drawing.Graphics]::FromImage($bmp); "
-                "$g.CopyFromScreen($b.Left,$b.Top,0,0,$bmp.Size); "
-                "[System.Windows.Forms.Clipboard]::SetImage($bmp)",
-                sta=True,
-            )
+            screenshot_to_clipboard()
         elif kind == "screenshotSelection":
             os.startfile("ms-screenclip:")  # type: ignore[attr-defined]
     except ActionError:

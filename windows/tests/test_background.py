@@ -23,11 +23,20 @@ def fake_pystray(monkeypatch):
     win32 = types.SimpleNamespace(
         NOTIFYICONDATAW=NOTIFYICONDATAW,
         Shell_NotifyIcon=lambda code, data: calls.append((code, data.uID)),
+        WM_USER=0x400, NIM_MODIFY="MODIFY", NIF_ICON=2,
+        PostMessage=lambda hwnd, msg, w, l: calls.append(("POST", msg)),
+        DestroyIcon=lambda handle: calls.append(("DESTROY", handle)),
     )
 
     class Icon:
         def __init__(self, name, image, title, menu=None):
             self._hwnd = 1234
+            self._message_handlers = {}
+            self.icon = image
+            self._icon_handle = None
+
+        def _assert_icon_handle(self):  # pystray's own route (used when the in-memory build is unavailable)
+            self._icon_handle = "new"
 
         def run_detached(self):
             self._message("ADD", 0)
@@ -83,3 +92,17 @@ def test_same_id_on_every_run(fake_pystray):
         make_tray().stop()
     ids = {hid for code, hid in fake_pystray if code in ("ADD", "DELETE")}
     assert ids == {bg.TRAY_ICON_ID}
+
+
+def test_icon_refresh_is_posted_to_the_tray_thread(fake_pystray):
+    tray = make_tray()
+    tray._icon.visible = True
+    tray.reassert()
+    posted = [msg for code, msg in fake_pystray if code == "POST"]
+    assert posted and posted[0] in tray._icon._message_handlers   # handled by pystray's own thread
+    fake_pystray.clear()
+    tray._icon._icon_handle = "old"
+    tray._icon._message_handlers[posted[0]](0, 0)                    # what that thread then runs
+    order = [code for code, _ in fake_pystray]
+    assert order.index("MODIFY") < order.index("DESTROY")            # new icon sent before the old is freed
+    tray.stop()

@@ -192,17 +192,35 @@ def _icon_class(pystray):
     except Exception:
         return pystray.Icon
 
+    refresh_message = win32.WM_USER + 0x48
+
     class HoloIcon(pystray.Icon):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._message_handlers[refresh_message] = lambda wparam, lparam: self._update_icon() or 0
+
         def _assert_icon_handle(self):
             if not self._icon_handle:
                 self._icon_handle = make_hicon(self.icon)
             if not self._icon_handle:
                 super()._assert_icon_handle()  # pystray's own .ico route as a fallback
 
+        def _update_icon(self):
+            # Hand Windows the new icon before destroying the old one, so the tray never
+            # holds a handle that no longer exists.
+            old, self._icon_handle = self._icon_handle, None
+            self._assert_icon_handle()
+            self._message(win32.NIM_MODIFY, win32.NIF_ICON, hIcon=self._icon_handle)
+            if old:
+                win32.DestroyIcon(old)
+            self._icon_valid = True
+
         def reassert_icon(self):
-            """Sends Windows a freshly built icon again (repairs a swapped tray image)."""
-            if self.visible:
-                self._update_icon()
+            """Sends Windows a freshly built icon again (repairs a swapped tray image).
+
+            Runs on pystray's own thread, like every other change to the tray icon."""
+            if self.visible and getattr(self, "_hwnd", None):
+                win32.PostMessage(self._hwnd, refresh_message, 0, 0)
 
         def _message(self, code, flags, **kwargs):
             win32.Shell_NotifyIcon(code, win32.NOTIFYICONDATAW(
